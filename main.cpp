@@ -13,13 +13,11 @@
 #include <thread>
 #include <unistd.h>
 
-#define CLIENT_ID "testMPP"
-#define BROKER_ADDRESS "Arrakis.local"
+#define CLIENT_ID "ctrlheaters"
+#define BROKER_ADDRESS "raspberrypi.local"
 #define MQTT_PORT 1883;
 #define MQTT_TOPIC "EXAMPLE_TOPIC"
 
-float setPoint = 18.0;
-float pointInc = 0.1;
 mqtt_client *iot_client;
 
 Logger mainLogger;
@@ -43,24 +41,48 @@ void controlHeaters() {
 int main(int argc, char *argv[]) {
   int rc;
 
-  char client_id[] = CLIENT_ID;
-  char host[] = BROKER_ADDRESS;
+  string client_id = CLIENT_ID;
+  string host = BROKER_ADDRESS;
   int port = MQTT_PORT;
 
   Logger::setOutStream(std::cout);
 
-  std::ifstream file("config.json");
+  if (argc != 2) {
+    mainLogger << "A config file shall be given as argument - exiting"
+               << Logger::eol;
+    return 1;
+  }
+
+  string configFileName = argv[1];
+
+  std::ifstream file(configFileName);
+  if (!file.is_open()) {
+    mainLogger << "Config file cannot be opened - exiting" << Logger::eol;
+    return 2;
+  }
+
   nlohmann::json config;
   file >> config;
 
-  mainLogger << "Fichier de configuration chargé" << Logger::eol;
-  mainLogger << "Lieu : ";
+  mainLogger << "Configuration file loaded" << Logger::eol;
+  mainLogger << "Location : ";
   auto found = config.find("location");
   if (found != config.end()) {
-    std::string location = found.value();
+    string location = found.value();
     mainLogger << location << Logger::eol;
   } else {
-    mainLogger << "<inconnu>" << Logger::eol;
+    mainLogger << "<unkown>" << Logger::eol;
+  }
+
+  /* Get the mqtt broker host and port if any */
+  found = config.find("host");
+  if (found != config.end()) {
+    host = found.value();
+  }
+
+  found = config.find("port");
+  if (found != config.end()) {
+    port = found.value();
   }
 
   Profile::parse(config, mainLogger);
@@ -68,10 +90,9 @@ int main(int argc, char *argv[]) {
 
   mosqpp::lib_init();
 
-  if (argc > 1)
-    strcpy(host, argv[1]);
+  mainLogger << "Connecting to host: " << host << ':' << port << Logger::eol;
 
-  iot_client = new mqtt_client(client_id, host, port);
+  iot_client = new mqtt_client(client_id.c_str(), host.c_str(), port);
 
   int message_id = 0;
   iot_client->subscribe(&message_id, "heater0/temperature");

@@ -12,8 +12,10 @@ Logger mHeaterLogger;
 set<Heater *> Heater::sHeaters;
 
 void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
+  /* Look for "heaters" section */
   auto found = inConfig.find("heaters");
   if (found != inConfig.end()) {
+    /* enumerate heaters */
     for (auto &[key, value] : found.value().items()) {
       string sKey = key;
       //      cout << sKey << endl;
@@ -26,13 +28,20 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
                    << Logger::eol;
         }
       } else if (value.is_object()) {
+        /* Look for "profile" */
         auto profile = value.find("profile");
         if (profile != value.end()) {
           if (profile->is_string()) {
             string sProfile = *profile;
             float dummy;
             if (Profile::temperatureForProfile(sProfile, dummy)) {
-              sHeaters.insert(new Heater(sKey, sProfile));
+              /* Look for the offset if any */
+              float o = 0.0;
+              auto offset = value.find("offset");
+              if (offset != value.end()) {
+                o = *offset;
+              }
+              sHeaters.insert(new Heater(sKey, sProfile, o));
             } else {
               inLogger << "Le profil " << sProfile
                        << " utilisé par le radiateur " << sKey
@@ -56,16 +65,23 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
 
 void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
   /* Compute the interval between 2 heater control call */
-  uint32_t interval = kCycle / sHeaters.size();
+  uint32_t interval = kCycle / sHeaters.size() / 2;
   if (interval < kMinInterval)
     interval = kMinInterval;
   if (interval > kMaxInterval)
     interval = kMaxInterval;
   inLogger << "Intervalle de mise à jour à " << interval << "s" << Logger::eol;
   while (1) {
+    // for (auto h : sHeaters) {
+    //   h->setOffset(inClient);
+    //   sleep(interval);
+    // }
+    for (auto h : sHeaters) {
+      h->control(inClient);
+      sleep(interval);
+    }
     for (auto h : sHeaters) {
       h->setMode(inClient, AUTOMATIC);
-      h->control(inClient);
       sleep(interval);
     }
   }
@@ -98,10 +114,13 @@ void Heater::setMode(mqtt_client *const inClient, const HeaterMode inMode) {
   default:
     return;
   }
-  if (inMode != mMode) {
-    string topic = mName + "/mode";
-    mMode = inMode;
-    inClient->publish(&messageId, topic.c_str(), payload.size(),
-                      payload.c_str());
-  }
+  string topic = mName + "/mode";
+  inClient->publish(&messageId, topic.c_str(), payload.size(), payload.c_str());
+}
+
+void Heater::setOffset(mqtt_client *const inClient) {
+  int messageId = 0;
+  string topic = mName + "/offset";
+  string payload = to_string_p(mOffset, 2);
+  inClient->publish(&messageId, topic.c_str(), payload.size(), payload.c_str());
 }

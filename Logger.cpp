@@ -48,6 +48,8 @@ Logger &Logger::operator<<(const char inData) {
     *mOutstream << mBuffer.str();
     mBuffer.str(string());
     mLock.unlock();
+  } else {
+    mBuffer << inData;
   }
   return *this;
 }
