@@ -79,8 +79,6 @@ void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
     for (auto h : sHeaters) {
       h->control(inClient);
       sleep(interval);
-    }
-    for (auto h : sHeaters) {
       h->setMode(inClient, AUTOMATIC);
       sleep(interval);
     }
