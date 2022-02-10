@@ -40,6 +40,12 @@ Logger &Logger::operator<<(const int inData) {
   return *this;
 }
 
+Logger &Logger::operator<<(const long inData) {
+  timestamp();
+  mBuffer << inData;
+  return *this;
+}
+
 Logger &Logger::operator<<(const char inData) {
   timestamp();
   if (inData == eol) {
@@ -48,6 +54,8 @@ Logger &Logger::operator<<(const char inData) {
     *mOutstream << mBuffer.str();
     mBuffer.str(string());
     mLock.unlock();
+  } else {
+    mBuffer << inData;
   }
   return *this;
 }

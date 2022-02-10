@@ -21,6 +21,7 @@ public:
   Logger &operator<<(const float inData);
   Logger &operator<<(const uint32_t inData);
   Logger &operator<<(const int inData);
+  Logger &operator<<(const long inData);
   Logger &operator<<(const char inData);
 };
 

@@ -10,6 +10,12 @@ Les bibliothèques utilisées sont les suivantes :
 - ```libmosquittopp```. Wrapper C++ de la libmosquitto. Également installée avec mosquitto.
 - ```nlohmann/json```. À installer via Homebrew : ```brew install nlohmann-json```.
 
+## Compilation
+
+```sh
+c++ -o ctrlheaters -std=c++17 -Wno-psabi *.cpp -lmosquittopp -lpthread
+```
+
 ## Fonctionnement
 
 La politique à appliquer pour chaque radiateur est décrite dans le fichier ```config.json```. À la racine, on trouve les clés suivantes :

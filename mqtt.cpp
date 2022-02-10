@@ -32,7 +32,7 @@ void mqtt_client::on_message(const struct mosquitto_message *message) {
   int payload_size = MAX_PAYLOAD + 1;
   char buf[payload_size];
 
-#ifdef DEBUG
+#ifdef DEBUG2
   mMQTTLogger << "MESSAGE - " << message->topic << ": "
               << (char *)(message->payload) << Logger::eol;
 #endif

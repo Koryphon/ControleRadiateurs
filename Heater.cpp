@@ -11,9 +11,18 @@ Logger mHeaterLogger;
 
 set<Heater *> Heater::sHeaters;
 
+/* Return a time_t for the date as string */
+time_t getTime(const string &inDate) {
+  struct tm tmp = {0};
+  strptime(inDate.c_str(), "%Y-%m-%d %H:%M", &tmp);
+  return mktime(&tmp);
+}
+
 void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
+  /* Look for "heaters" section */
   auto found = inConfig.find("heaters");
   if (found != inConfig.end()) {
+    /* enumerate heaters */
     for (auto &[key, value] : found.value().items()) {
       string sKey = key;
       //      cout << sKey << endl;
@@ -26,13 +35,53 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
                    << Logger::eol;
         }
       } else if (value.is_object()) {
+        /* Look for "profile" */
         auto profile = value.find("profile");
         if (profile != value.end()) {
           if (profile->is_string()) {
             string sProfile = *profile;
             float dummy;
             if (Profile::temperatureForProfile(sProfile, dummy)) {
-              sHeaters.insert(new Heater(sKey, sProfile));
+              /* Look for the offset if any */
+              float o = 0.0;
+              auto offset = value.find("offset");
+              if (offset != value.end()) {
+                o = *offset;
+              }
+
+              /* Récupère la section date qui définit un profil en fct de la
+               * date */
+              map<time_t, string> datedProfiles;
+              auto date = value.find("date");
+              if (date != value.end()) {
+                if (date->is_object()) {
+                  for (auto &[key, value] : date.value().items()) {
+                    /* key = date, value = profile de chauffe */
+                    time_t time = getTime(key);
+                    inLogger << key << " : " << time << Logger::eol;
+                    if (value.is_string()) {
+                      string datedP = value;
+                      if (Profile::temperatureForProfile(datedP, dummy)) {
+                        datedProfiles.insert(
+                            pair<time_t, string>(time, datedP));
+                      } else {
+                        inLogger << "Radiateur " << sKey << ", date " << key
+                                 << ", le profil " << datedP << " n'existe pas"
+                                 << Logger::eol;
+                      }
+                    } else {
+                      inLogger << "Radiateur " << sKey << ", date " << key
+                               << " : Profil attendu" << Logger::eol;
+                    }
+                  }
+                } else {
+                  inLogger << "Radiateur " << sKey
+                           << "L'attribut date devrait être un objet"
+                           << Logger::eol;
+                }
+              }
+
+              sHeaters.insert(new Heater(sKey, sProfile, datedProfiles, o));
             } else {
               inLogger << "Le profil " << sProfile
                        << " utilisé par le radiateur " << sKey
@@ -42,15 +91,6 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
         } else {
           inLogger << "Aucun profil défini pour le radiateur " << sKey
                    << Logger::eol;
-        }
-        /* Récupère la section date qui définit un profil en fct de la date */
-        auto date = value.find("date");
-        if (date != value.end()) {
-          if (date->is_object()) {
-            for (auto &[key, value] : date.value().items()) {
-              /* key = date, value = profile de chauffe */
-            }
-          }
         }
       } else {
         inLogger << "Le radiateur " << sKey
@@ -65,16 +105,21 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
 
 void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
   /* Compute the interval between 2 heater control call */
-  uint32_t interval = kCycle / sHeaters.size();
+  uint32_t interval = kCycle / sHeaters.size() / 2;
   if (interval < kMinInterval)
     interval = kMinInterval;
   if (interval > kMaxInterval)
     interval = kMaxInterval;
   inLogger << "Intervalle de mise à jour à " << interval << "s" << Logger::eol;
   while (1) {
+    // for (auto h : sHeaters) {
+    //   h->setOffset(inClient);
+    //   sleep(interval);
+    // }
     for (auto h : sHeaters) {
-      h->setMode(inClient, AUTOMATIC);
       h->control(inClient);
+      sleep(interval);
+      h->setMode(inClient, AUTOMATIC);
       sleep(interval);
     }
   }
@@ -83,7 +128,29 @@ void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
 void Heater::control(mqtt_client *const inClient) {
   int messageId = 0;
   float temp;
-  if (Profile::temperatureForProfile(mProfile, temp)) {
+  /* Check if current time correspond to a timed profile */
+  time_t currentDate = time(NULL);
+  bool found = false;
+  for (auto iter = mProfileForDate.rbegin(); iter != mProfileForDate.rend();
+       ++iter) {
+    cout << currentDate << " / " << iter->first << " : " << iter->second
+         << endl;
+    time_t activationDate = iter->first;
+    if (currentDate >= activationDate) {
+      string profile = iter->second;
+      if (Profile::temperatureForProfile(profile, temp)) {
+        cout << "Trouvé : " << activationDate << endl;
+        found = true;
+        string topic = mName + "/setpoint";
+        string payload = to_string_p(temp, 2);
+        inClient->publish(&messageId, topic.c_str(), payload.size(),
+                          payload.c_str());
+        break;
+      }
+    }
+  }
+
+  if (!found && Profile::temperatureForProfile(mProfile, temp)) {
     string topic = mName + "/setpoint";
     string payload = to_string_p(temp, 2);
     inClient->publish(&messageId, topic.c_str(), payload.size(),
@@ -107,10 +174,13 @@ void Heater::setMode(mqtt_client *const inClient, const HeaterMode inMode) {
   default:
     return;
   }
-  if (inMode != mMode) {
-    string topic = mName + "/mode";
-    mMode = inMode;
-    inClient->publish(&messageId, topic.c_str(), payload.size(),
-                      payload.c_str());
-  }
+  string topic = mName + "/mode";
+  inClient->publish(&messageId, topic.c_str(), payload.size(), payload.c_str());
+}
+
+void Heater::setOffset(mqtt_client *const inClient) {
+  int messageId = 0;
+  string topic = mName + "/offset";
+  string payload = to_string_p(mOffset, 2);
+  inClient->publish(&messageId, topic.c_str(), payload.size(), payload.c_str());
 }
