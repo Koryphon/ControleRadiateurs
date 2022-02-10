@@ -95,7 +95,11 @@
             "profile": "test"
         },
         "heater1": {
-            "profile": "salle"
+            "profile": "salle",
+            "date": {
+                "2022-02-12": "inoccupe",
+                "2022-02-15": "salle"
+            }
         }
     }
 }

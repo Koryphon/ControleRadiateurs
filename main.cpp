@@ -14,12 +14,12 @@
 #include <unistd.h>
 
 #define CLIENT_ID "testMPP"
-#define BROKER_ADDRESS "Arrakis.local"
+#define BROKER_ADDRESS "localhost"
 #define MQTT_PORT 1883;
 #define MQTT_TOPIC "EXAMPLE_TOPIC"
 
-float setPoint = 18.0;
-float pointInc = 0.1;
+// float setPoint = 18.0;
+// float pointInc = 0.1;
 mqtt_client *iot_client;
 
 Logger mainLogger;
@@ -74,19 +74,12 @@ int main(int argc, char *argv[]) {
   iot_client = new mqtt_client(client_id, host, port);
 
   int message_id = 0;
-  iot_client->subscribe(&message_id, "heater0/temperature");
-  iot_client->subscribe(&message_id, "heater0/setpoint");
-  iot_client->subscribe(&message_id, "heater1/setpoint");
-
   std::thread updateSetpoint(controlHeaters);
 
   while (1) {
     rc = iot_client->loop();
     if (rc) {
       iot_client->reconnect();
-      iot_client->subscribe(&message_id, "heater0/temperature");
-      iot_client->subscribe(&message_id, "heater0/setpoint");
-      iot_client->subscribe(&message_id, "heater1/setpoint");
     }
   }
 

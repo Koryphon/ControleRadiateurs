@@ -43,6 +43,15 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
           inLogger << "Aucun profil défini pour le radiateur " << sKey
                    << Logger::eol;
         }
+        /* Récupère la section date qui définit un profil en fct de la date */
+        auto date = value.find("date");
+        if (date != value.end()) {
+          if (date->is_object()) {
+            for (auto &[key, value] : date.value().items()) {
+              /* key = date, value = profile de chauffe */
+            }
+          }
+        }
       } else {
         inLogger << "Le radiateur " << sKey
                  << " doit être \"off\" ou avoir un profil" << Logger::eol;
