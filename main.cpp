@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 #define CLIENT_ID "ctrlheaters"
-#define BROKER_ADDRESS "localhost"
+#define BROKER_ADDRESS "raspberrypi.local"
 #define MQTT_PORT 1883;
 #define MQTT_TOPIC "EXAMPLE_TOPIC"
 

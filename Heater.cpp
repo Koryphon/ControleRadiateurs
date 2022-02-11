@@ -133,16 +133,17 @@ void Heater::control(mqtt_client *const inClient) {
   bool found = false;
   for (auto iter = mProfileForDate.rbegin(); iter != mProfileForDate.rend();
        ++iter) {
-    cout << currentDate << " / " << iter->first << " : " << iter->second
-         << endl;
+    //    cout << currentDate << " / " << iter->first << " : " << iter->second
+    //         << endl;
     time_t activationDate = iter->first;
     if (currentDate >= activationDate) {
       string profile = iter->second;
       if (Profile::temperatureForProfile(profile, temp)) {
-        cout << "Trouvé : " << activationDate << endl;
+        //        cout << "Trouvé : " << activationDate;
         found = true;
         string topic = mName + "/setpoint";
         string payload = to_string_p(temp, 2);
+        //        cout << " - " << topic << " : " << payload << endl;
         inClient->publish(&messageId, topic.c_str(), payload.size(),
                           payload.c_str());
         break;
