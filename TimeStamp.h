@@ -7,4 +7,6 @@ using namespace std;
 
 uint32_t minutesSinceMidnight();
 
+float decimalMinutesSinceMidnight();
+
 #endif

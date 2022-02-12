@@ -4,21 +4,77 @@
 #include <sstream>
 #include <string>
 
-bool operator<(const TimedTemp &inOp1, const TimedTemp &inOp2) {
+bool timeStringToSeconds(const string &inTime, uint32_t &result) {
+  if (int pos = inTime.find(':')) {
+    stringstream hours;
+    hours << inTime.substr(0, pos);
+    stringstream minutes;
+    minutes << inTime.substr(pos + 1);
+    uint32_t h;
+    hours >> h;
+    uint32_t m;
+    minutes >> m;
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      result = h * 60 + m;
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+
+bool operator<(const BaseTimedTemp &inOp1, const BaseTimedTemp &inOp2) {
   return inOp1.mMinutes < inOp2.mMinutes;
 }
 
-ostream &operator<<(ostream &s, TimedTemp &tt) {
-  s << tt.mMinutes << " : " << tt.mTemperature;
+ostream &operator<<(ostream &s, BaseTimedTemp *tt) {
+  tt->print(s);
+  return s;
+}
+
+ostream &operator<<(ostream &s, TimedTemp *tt) {
+  tt->print(s);
+  return s;
+}
+
+ostream &operator<<(ostream &s, SlopedTimedTemp *tt) {
+  tt->print(s);
   return s;
 }
 
 ostream &operator<<(ostream &s, ProfileTemp &pt) {
   for (auto it : pt.mTemps) {
-    TimedTemp tt = it;
-    s << "    " << tt << endl;
+    BaseTimedTemp *tt = it;
+    s << "    ";
+    tt->print(s);
+    s << endl;
   }
   return s;
+}
+
+void BaseTimedTemp::print(ostream &o) { o << "-> " << mMinutes; }
+
+void TimedTemp::print(ostream &o) {
+  BaseTimedTemp::print(o);
+  o << " : " << mTemperature;
+}
+
+void SlopedTimedTemp::print(ostream &o) {
+  BaseTimedTemp::print(o);
+  o << " : " << mStartTemperature << " --(" << mDuration << ")-- "
+    << mEndTemperature;
+}
+
+float SlopedTimedTemp::temperature() const {
+  const float mins = decimalMinutesSinceMidnight() - (float)minutes();
+  const float deltaTemp = mEndTemperature - mStartTemperature;
+  if (mDuration == 0.0 || mins >= mDuration) {
+    return mEndTemperature;
+  } else {
+    return mStartTemperature + deltaTemp * mins / mDuration;
+  }
 }
 
 map<string, Profile *> Profile::sProfiles;
@@ -34,8 +90,14 @@ bool ProfileAlias::check(Logger &inLogger) {
 }
 
 void ProfileTemp::add(const uint32_t inMinutes, const float inTemperature) {
-  TimedTemp slot(inMinutes, inTemperature);
-  mTemps.insert(slot);
+  mTemps.insert(new TimedTemp(inMinutes, inTemperature));
+}
+
+void ProfileTemp::add(const uint32_t inMinutes, const uint32_t inDuration,
+                      const float inStartTemperature,
+                      const float inEndTemperature) {
+  mTemps.insert(new SlopedTimedTemp(inMinutes, inDuration, inStartTemperature,
+                                    inEndTemperature));
 }
 
 void Profile::parse(nlohmann::json &inConfig, Logger &inLogger) {
@@ -53,23 +115,30 @@ void Profile::parse(nlohmann::json &inConfig, Logger &inLogger) {
         ProfileTemp *tempList = new ProfileTemp();
         for (auto &[key, value] : value.items()) {
           string sTime = key;
-          float sTemp = value;
-          //          cout << sTime << ", " << sTemp << endl;
-          if (int pos = sTime.find(':')) {
-            stringstream sHours;
-            sHours << sTime.substr(0, pos);
-            stringstream sMinutes;
-            sMinutes << sTime.substr(pos + 1);
-            uint32_t hours;
-            sHours >> hours;
-            uint32_t minutes;
-            sMinutes >> minutes;
-            //            cout << hours * 60 + minutes << endl;
-            tempList->add(hours * 60 + minutes, sTemp);
+          uint32_t t;
+          if (timeStringToSeconds(sTime, t)) {
+            if (value.is_object()) {
+              // inLogger << "Slope trouvée" << Logger::eol;
+              auto first = value.begin();
+              uint32_t duration;
+              if (timeStringToSeconds(first.key(), duration)) {
+                // inLogger << duration << Logger::eol;
+                float startTemp = first.value().at(0);
+                float endTemp = first.value().at(1);
+                // inLogger << startTemp << ", " << endTemp << Logger::eol;
+                tempList->add(t, duration, startTemp, endTemp);
+              }
+            } else {
+              float sTemp = value;
+              tempList->add(t, sTemp);
+            }
+          } else {
+            inLogger << "L'heure " << sTime << " du profil \"" << sKey
+                     << "\" est incorrectement formattée" << Logger::eol;
           }
         }
         sProfiles[sKey] = tempList;
-        //       cout << *tempList;
+        // cout << *tempList;
       } else {
         inLogger << "Le profil " << sKey << " doit être un alias ou une liste"
                  << Logger::eol;
@@ -99,8 +168,9 @@ bool Profile::temperatureForProfile(const string &inProfile, float &outTemp) {
 bool ProfileTemp::temperature(float &outTemp) {
   const uint32_t minutes = minutesSinceMidnight();
   for (auto temp = mTemps.rbegin(); temp != mTemps.rend(); temp++) {
-    if (temp->minutes() <= minutes) {
-      outTemp = temp->temperature();
+    BaseTimedTemp *tempObj = *temp;
+    if (tempObj->minutes() <= minutes) {
+      outTemp = tempObj->temperature();
       return true;
     }
   }

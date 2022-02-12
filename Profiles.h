@@ -13,17 +13,40 @@
 
 using namespace std;
 
-class TimedTemp {
+class BaseTimedTemp {
   uint32_t mMinutes;
+
+public:
+  BaseTimedTemp(const uint32_t inMinutes) : mMinutes(inMinutes) {}
+  virtual float temperature() const { return 0.0; }
+  uint32_t minutes() const { return mMinutes; }
+  virtual void print(ostream &o);
+  friend bool operator<(const BaseTimedTemp &inOp1, const BaseTimedTemp &inOp2);
+};
+
+class TimedTemp : public BaseTimedTemp {
   float mTemperature;
 
 public:
   TimedTemp(const uint32_t inMinutes, const float inTemperature)
-      : mMinutes(inMinutes), mTemperature(inTemperature) {}
-  float temperature() const { return mTemperature; }
-  uint32_t minutes() const { return mMinutes; }
-  friend bool operator<(const TimedTemp &inOp1, const TimedTemp &inOp2);
-  friend ostream &operator<<(ostream &s, TimedTemp &tt);
+      : BaseTimedTemp(inMinutes), mTemperature(inTemperature) {}
+  virtual float temperature() const { return mTemperature; }
+  virtual void print(ostream &o);
+};
+
+class SlopedTimedTemp : public BaseTimedTemp {
+  float mDuration;
+  float mStartTemperature;
+  float mEndTemperature;
+
+public:
+  SlopedTimedTemp(const uint32_t inMinutes, const uint32_t inDuration,
+                  const float inStartTemperature, const float inEndTemperature)
+      : BaseTimedTemp(inMinutes), mDuration((float)inDuration),
+        mStartTemperature(inStartTemperature),
+        mEndTemperature(inEndTemperature) {}
+  virtual float temperature() const;
+  virtual void print(ostream &o);
 };
 
 class Profile {
@@ -48,11 +71,13 @@ public:
 };
 
 class ProfileTemp : public Profile {
-  set<TimedTemp> mTemps;
+  set<BaseTimedTemp *> mTemps;
 
 public:
   ProfileTemp() : Profile() {}
   void add(const uint32_t inMinutes, const float inTemperature);
+  void add(const uint32_t inMinutes, const uint32_t inDuration,
+           const float inStartTemperature, const float inEndTemperature);
   virtual bool check(Logger &inLogger) { return true; }
   virtual bool temperature(float &outTemp);
   friend ostream &operator<<(ostream &s, ProfileTemp &pt);

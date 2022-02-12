@@ -58,7 +58,7 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
                   for (auto &[key, value] : date.value().items()) {
                     /* key = date, value = profile de chauffe */
                     time_t time = getTime(key);
-                    inLogger << key << " : " << time << Logger::eol;
+                    // inLogger << key << " : " << time << Logger::eol;
                     if (value.is_string()) {
                       string datedP = value;
                       if (Profile::temperatureForProfile(datedP, dummy)) {
@@ -98,9 +98,9 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
       }
     }
   }
-  for (auto h : sHeaters) {
-    inLogger << h->mName << " : " << h->mProfile << Logger::eol;
-  }
+  // for (auto h : sHeaters) {
+  //   inLogger << h->mName << " : " << h->mProfile << Logger::eol;
+  // }
 }
 
 void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
@@ -152,6 +152,9 @@ void Heater::control(mqtt_client *const inClient) {
   }
 
   if (!found && Profile::temperatureForProfile(mProfile, temp)) {
+    // if (mName == "heater1") {
+    //   cout << "À " << decimalMinutesSinceMidnight() << ", temp = " << temp
+    // }
     string topic = mName + "/setpoint";
     string payload = to_string_p(temp, 2);
     inClient->publish(&messageId, topic.c_str(), payload.size(),
