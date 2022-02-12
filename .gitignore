@@ -39,3 +39,7 @@
 
 # Projet
 objects
+ctrlheaters
+
+# Visual studio
+.vscode
