@@ -1,5 +1,7 @@
 {
     "location": "Maison",
+    "host": "localhost",
+    "port": 1883,
     "profiles": {
         "salle": {
             "00:00": {

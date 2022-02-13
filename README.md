@@ -23,6 +23,8 @@ Python 2 or 3 is needed.
 The policy to be applied for each heater is described in the file ``config.json``. At the root, we find the following keys:
 
 - ```"location"```. The value is of type string and identifies the place of deployment. It will be displayed for information purposes when the application starts.
+- ```"host"```. The value is of type string and is the host name where the MQTT broker runs. If not specified, ```"localhost"``` is used.
+- ```"port"```. The value is of type int and is the port where the MQTT broker listens. If not specified, ```1883``` is used.
 - ```"profiles"```. The value is a list of heating profiles over 24 hours. A heating profile key is of the form ```"hh:mm"``` and specifies the time at which a temperature is applied. The value is either a temperature in floating point number and in °C or a unique object with a single field having as key the duration and as value an array of 2 elements. The first element is the start temperature and the second the end temperature. The setpoint temperature will be a slope from the start temperature to the end temperature for the specified duration. After the interval, the end temperature is applied.
 A profile can also be a reference to another profile (alias).
 - ```"heaters"```. The value is a list of heaters with a key equal to their MQTT topic. [FirmwareRadiateur](https://github.com/Koryphon/FirmwareRadiateur) names the heaters ```heaterX``` where ```X``` is a number from 0 to 63 as given by the dip switch positions. The value of each heater can be the string ```"off"```, in which case the heater is not taken into account. Or it can be an object containing 
