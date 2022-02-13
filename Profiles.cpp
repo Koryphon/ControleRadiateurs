@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 
+template <typename Iter> Iter next(Iter iter) { return ++iter; }
+
 bool timeStringToSeconds(const string &inTime, uint32_t &result) {
   if (int pos = inTime.find(':')) {
     stringstream hours;
@@ -127,21 +129,30 @@ void Profile::parse(nlohmann::json &inConfig, Logger &inLogger) {
                 float endTemp = first.value().at(1);
                 // inLogger << startTemp << ", " << endTemp << Logger::eol;
                 tempList->add(t, duration, startTemp, endTemp);
+              } else {
+                inLogger << "The duration of the time \"" << sTime
+                         << "\" of the profile \"" << sKey
+                         << "\" is incorrectly formatted" << Logger::eol;
               }
-            } else {
+            } else if (value.is_number_float()) {
               float sTemp = value;
               tempList->add(t, sTemp);
+            } else {
+              inLogger << "At time \"" << sTime
+                       << "\", the value should be a temperature in float or "
+                          "an object."
+                       << Logger::eol;
             }
           } else {
-            inLogger << "L'heure " << sTime << " du profil \"" << sKey
-                     << "\" est incorrectement formattée" << Logger::eol;
+            inLogger << "The time \"" << sTime << "\" of profile \"" << sKey
+                     << "\" is incorrectly formatted" << Logger::eol;
           }
         }
         sProfiles[sKey] = tempList;
         // cout << *tempList;
       } else {
-        inLogger << "Le profil " << sKey << " doit être un alias ou une liste"
-                 << Logger::eol;
+        inLogger << "The profile \"" << sKey
+                 << "\" must be an alias or an object" << Logger::eol;
       }
     }
   }
@@ -151,8 +162,19 @@ void Profile::parse(nlohmann::json &inConfig, Logger &inLogger) {
     ok &= it.second->check(inLogger);
   }
   if (!ok) {
-    inLogger << "Terminé" << Logger::eol;
+    inLogger << "Unresolved alias(es) in profiles. Exiting" << Logger::eol;
     exit(1);
+  } else {
+    inLogger << (uint32_t)sProfiles.size() << " profiles found: ";
+    int count = 0;
+    for (auto it : sProfiles) {
+      inLogger << '"' << it.first << '"';
+      count++;
+      if (count < sProfiles.size()) {
+        inLogger << ", ";
+      }
+    }
+    inLogger << Logger::eol;
   }
 }
 

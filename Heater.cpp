@@ -127,6 +127,14 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
   // for (auto h : sHeaters) {
   //   inLogger << h->mName << " : " << h->mProfile << Logger::eol;
   // }
+  inLogger << (uint32_t)sHeaters.size() << " heaters found";
+  if (sHeaters.size() > 0) {
+    inLogger << ':';
+  }
+  inLogger << Logger::eol;
+  for (auto h : sHeaters) {
+    inLogger << "  " << h->mName << ": " << h->mProfile << Logger::eol;
+  }
 }
 
 void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
