@@ -7,35 +7,56 @@
 #include <iostream>
 #include <unistd.h>
 
-Logger mHeaterLogger;
-
+/*----------------------------------------------------------------------------
+ * Static member of the Heater class. Used to store the heaters
+ * instanciated after reading the configuration file.
+ */
 set<Heater *> Heater::sHeaters;
 
-/* Return a time_t for the date as string */
-time_t getTime(const string &inDate) {
+/*----------------------------------------------------------------------------
+ * Returns a time_t for the date as string. Used to convert the dates of the
+ * json object "date" to seconds since the first of January 1900.
+ */
+static time_t getTime(const string &inDate) {
   struct tm tmp = {0};
   strptime(inDate.c_str(), "%Y-%m-%d %H:%M", &tmp);
   return mktime(&tmp);
 }
 
+/*----------------------------------------------------------------------------
+ * Retrieves information from the "heaters" section of the json and creates the
+ * corresponding heaters. TODO: split into several functions.
+ */
 void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
-  /* Look for "heaters" section */
+  /*
+   * Look for "heaters" section
+   */
   auto found = inConfig.find("heaters");
   if (found != inConfig.end()) {
-    /* enumerate heaters */
+    /*
+     * enumerate heaters
+     */
     for (auto &[key, value] : found.value().items()) {
+      /*
+       * key is the heater name
+       */
       string sKey = key;
       //      cout << sKey << endl;
       if (value.is_string()) {
+        /*
+         * If the value is a string, it shall be "off"
+         * In this case, the heater is not instantiated.
+         */
         string sVal = value;
         if (sVal == "off") {
         } else {
-          inLogger << "La clé " << sVal
-                   << "n'est pas attendue pour le radiateur " << sKey
-                   << Logger::eol;
+          inLogger << "The key " << sVal << "is not expected for the heater "
+                   << sKey << Logger::eol;
         }
       } else if (value.is_object()) {
-        /* Look for "profile" */
+        /*
+         * The value is an object. So we look for "profile"
+         */
         auto profile = value.find("profile");
         if (profile != value.end()) {
           if (profile->is_string()) {
@@ -87,6 +108,9 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
                        << " utilisé par le radiateur " << sKey
                        << " n'existe pas" << Logger::eol;
             }
+          } else {
+            inLogger << "The profile of the heater " << sKey
+                     << " should be a string" << Logger::eol;
           }
         } else {
           inLogger << "Aucun profil défini pour le radiateur " << sKey
@@ -97,6 +121,8 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
                  << " doit être \"off\" ou avoir un profil" << Logger::eol;
       }
     }
+  } else {
+    inLogger << "Aucun radiateur défini" << Logger::eol;
   }
   // for (auto h : sHeaters) {
   //   inLogger << h->mName << " : " << h->mProfile << Logger::eol;
