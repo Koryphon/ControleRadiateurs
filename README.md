@@ -1,6 +1,6 @@
 # ControleRadiateurs
 
-MQTT client written in C++17 and designed to control a set of heaters driven by [FirmwareRadiateur](https://github.com/Koryphon/FirmwareRadiateur) running on dedicated boards.
+MQTT client written in C++20 and designed to control a set of heaters driven by [FirmwareRadiateur](https://github.com/Koryphon/FirmwareRadiateur) running on dedicated boards.
 
 ## Used libraries
 

@@ -83,7 +83,11 @@
             "location": "Extension salon",
             "offset": -3.2,
             "power": 1500,
-            "profile": "salle"
+            "profile": "salle",
+            "date": {
+                "2022-02-11 11:10": "inoccupee",
+                "2022-02-15 03:00": "salle"
+            }
         },
         "heater2": {
             "location": "Salle de couture",

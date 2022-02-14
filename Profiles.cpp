@@ -1,4 +1,5 @@
 #include "Profiles.h"
+#include "Log.h"
 #include "TimeStamp.h"
 #include <iostream>
 #include <sstream>
@@ -7,6 +8,11 @@
 template <typename Iter> Iter next(Iter iter) { return ++iter; }
 
 bool timeStringToSeconds(const string &inTime, uint32_t &result) {
+  for (int i = 0; i < inTime.length(); i++) {
+    if (inTime[i] != ':' && (inTime[i] < '0' || inTime[i] > '9')) {
+      return false;
+    }
+  }
   if (int pos = inTime.find(':')) {
     stringstream hours;
     hours << inTime.substr(0, pos);
@@ -81,13 +87,24 @@ float SlopedTimedTemp::temperature() const {
 
 map<string, Profile *> Profile::sProfiles;
 
-bool ProfileAlias::check(Logger &inLogger) {
-  auto item = sProfiles.find(mAlias);
-  if (item == sProfiles.end()) {
-    inLogger << "Le profil \"" << mAlias << "\" n'existe pas" << Logger::eol;
+bool ProfileAlias::check(Logger &inLogger, const string &inName,
+                         set<string> &ioKnownProfiles) {
+  if (ioKnownProfiles.contains(mAlias)) {
+    Log(inLogger, "aliasCircularity", mAlias);
+    exit(3);
     return false;
   } else {
-    return item->second->check(inLogger);
+    auto item = sProfiles.find(mAlias);
+    if (item == sProfiles.end()) {
+      Log(inLogger, "aliasNotFound", mAlias);
+      return false;
+    } else {
+      ioKnownProfiles.insert(mAlias);
+      const bool result =
+          item->second->check(inLogger, inName, ioKnownProfiles);
+      ioKnownProfiles.erase(mAlias);
+      return result;
+    }
   }
 }
 
@@ -130,51 +147,38 @@ void Profile::parse(nlohmann::json &inConfig, Logger &inLogger) {
                 // inLogger << startTemp << ", " << endTemp << Logger::eol;
                 tempList->add(t, duration, startTemp, endTemp);
               } else {
-                inLogger << "The duration of the time \"" << sTime
-                         << "\" of the profile \"" << sKey
-                         << "\" is incorrectly formatted" << Logger::eol;
+                Log(inLogger, "durationBadlyFormatted", sKey, sTime);
               }
             } else if (value.is_number_float()) {
               float sTemp = value;
               tempList->add(t, sTemp);
             } else {
-              inLogger << "At time \"" << sTime
-                       << "\", the value should be a temperature in float or "
-                          "an object."
-                       << Logger::eol;
+              Log(inLogger, "floatTemperatureOrObject", sKey, sTime);
             }
           } else {
-            inLogger << "The time \"" << sTime << "\" of profile \"" << sKey
-                     << "\" is incorrectly formatted" << Logger::eol;
+            Log(inLogger, "timeBadlyFormatted", sKey, sTime);
           }
         }
         sProfiles[sKey] = tempList;
-        // cout << *tempList;
       } else {
-        inLogger << "The profile \"" << sKey
-                 << "\" must be an alias or an object" << Logger::eol;
+        Log(inLogger, "badProfile", sKey);
       }
     }
   }
   /* Check aliases are ok */
   bool ok = true;
+  set<string> knownProfiles;
   for (auto it : sProfiles) {
-    ok &= it.second->check(inLogger);
+    ok &= it.second->check(inLogger, it.first, knownProfiles);
   }
   if (!ok) {
-    inLogger << "Unresolved alias(es) in profiles. Exiting" << Logger::eol;
+    Log(inLogger, "unresolvedAlias");
     exit(1);
   } else {
-    inLogger << (uint32_t)sProfiles.size() << " profiles found: ";
-    int count = 0;
+    Log(inLogger, "profilesFound", to_string(sProfiles.size()));
     for (auto it : sProfiles) {
-      inLogger << '"' << it.first << '"';
-      count++;
-      if (count < sProfiles.size()) {
-        inLogger << ", ";
-      }
+      Log(inLogger, "profile", it.first);
     }
-    inLogger << Logger::eol;
   }
 }
 

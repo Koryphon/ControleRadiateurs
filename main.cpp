@@ -1,4 +1,5 @@
 #include "Heater.h"
+#include "Log.h"
 #include "Logger.h"
 #include "Profiles.h"
 #include "TimeStamp.h"
@@ -36,8 +37,7 @@ int main(int argc, char *argv[]) {
   Logger::setOutStream(std::cout);
 
   if (argc != 2) {
-    mainLogger << "A config file shall be given as argument - exiting"
-               << Logger::eol;
+    Log(mainLogger, "noConfigFile");
     return 1;
   }
 
@@ -45,21 +45,21 @@ int main(int argc, char *argv[]) {
 
   std::ifstream file(configFileName);
   if (!file.is_open()) {
-    mainLogger << "Config file cannot be opened - exiting" << Logger::eol;
+    Log(mainLogger, "configFileNotAccessible");
     return 2;
   }
 
   nlohmann::json config;
   file >> config;
 
-  mainLogger << "Configuration file loaded" << Logger::eol;
-  mainLogger << "Location : ";
+  Log(mainLogger, "configFileLoaded", configFileName);
+
   auto found = config.find("location");
   if (found != config.end()) {
     string location = found.value();
-    mainLogger << location << Logger::eol;
+    Log(mainLogger, "location", location);
   } else {
-    mainLogger << "<unkown>" << Logger::eol;
+    Log(mainLogger, "unknownLocation");
   }
 
   /* Get the mqtt broker host and port if any */
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 
   mosqpp::lib_init();
 
-  mainLogger << "Connecting to host: " << host << ':' << port << Logger::eol;
+  Log(mainLogger, "connecting", host, to_string(port));
 
   iot_client = new mqtt_client(client_id.c_str(), host.c_str(), port);
 

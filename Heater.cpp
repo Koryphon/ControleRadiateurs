@@ -1,5 +1,6 @@
 #include "Heater.h"
 #include "Cfg.h"
+#include "Log.h"
 #include "Logger.h"
 #include "Profiles.h"
 #include "TimeStamp.h"
@@ -50,13 +51,23 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
         string sVal = value;
         if (sVal == "off") {
         } else {
+          Log(inLogger, "offStringExpected", sKey);
           inLogger << "The key " << sVal << "is not expected for the heater "
                    << sKey << Logger::eol;
         }
       } else if (value.is_object()) {
         /*
-         * The value is an object. So we look for "profile"
+         * The value is an object. So we look for "location" and "profile"
          */
+        string sRoom = "";
+        auto room = value.find("location");
+        if (room != value.end()) {
+          if (room->is_string()) {
+            sRoom = *room;
+          } else {
+          }
+        }
+
         auto profile = value.find("profile");
         if (profile != value.end()) {
           if (profile->is_string()) {
@@ -86,54 +97,43 @@ void Heater::parse(nlohmann::json &inConfig, Logger &inLogger) {
                         datedProfiles.insert(
                             pair<time_t, string>(time, datedP));
                       } else {
-                        inLogger << "Radiateur " << sKey << ", date " << key
-                                 << ", le profil " << datedP << " n'existe pas"
-                                 << Logger::eol;
+                        Log(inLogger, "heaterDateNonExistingProfile", sKey, key,
+                            datedP);
                       }
                     } else {
-                      inLogger << "Radiateur " << sKey << ", date " << key
-                               << " : Profil attendu" << Logger::eol;
+                      Log(inLogger, "heaterDateNoProfile", sKey, key);
                     }
                   }
                 } else {
-                  inLogger << "Radiateur " << sKey
-                           << "L'attribut date devrait être un objet"
-                           << Logger::eol;
+                  Log(inLogger, "heaterDateNotObj", sKey);
                 }
               }
 
-              sHeaters.insert(new Heater(sKey, sProfile, datedProfiles, o));
+              sHeaters.insert(
+                  new Heater(sKey, sRoom, sProfile, datedProfiles, o));
             } else {
-              inLogger << "Le profil " << sProfile
-                       << " utilisé par le radiateur " << sKey
-                       << " n'existe pas" << Logger::eol;
+              Log(inLogger, "unknownProfile", sKey, sProfile);
             }
           } else {
-            inLogger << "The profile of the heater " << sKey
-                     << " should be a string" << Logger::eol;
+            Log(inLogger, "profileNotString", sKey);
           }
         } else {
-          inLogger << "Aucun profil défini pour le radiateur " << sKey
-                   << Logger::eol;
+          Log(inLogger, "heaterNoProfile", sKey);
         }
       } else {
-        inLogger << "Le radiateur " << sKey
-                 << " doit être \"off\" ou avoir un profil" << Logger::eol;
+        Log(inLogger, "heaterOffOrObject", sKey);
       }
     }
   } else {
-    inLogger << "Aucun radiateur défini" << Logger::eol;
+    Log(inLogger, "noHeater");
+    exit(4);
   }
   // for (auto h : sHeaters) {
   //   inLogger << h->mName << " : " << h->mProfile << Logger::eol;
   // }
-  inLogger << (uint32_t)sHeaters.size() << " heaters found";
-  if (sHeaters.size() > 0) {
-    inLogger << ':';
-  }
-  inLogger << Logger::eol;
+  Log(inLogger, "heatersFound", to_string(sHeaters.size()));
   for (auto h : sHeaters) {
-    inLogger << "  " << h->mName << ": " << h->mProfile << Logger::eol;
+    Log(inLogger, "heater", h->mName, h->mRoom);
   }
 }
 
@@ -144,7 +144,7 @@ void Heater::controlPool(mqtt_client *const inClient, Logger &inLogger) {
     interval = kMinInterval;
   if (interval > kMaxInterval)
     interval = kMaxInterval;
-  inLogger << "Intervalle de mise à jour à " << interval << "s" << Logger::eol;
+  Log(inLogger, "updateInterval", to_string(interval));
   while (1) {
     // for (auto h : sHeaters) {
     //   h->setOffset(inClient);

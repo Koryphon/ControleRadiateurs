@@ -1,4 +1,5 @@
 #include "mqtt.h"
+#include "Log.h"
 #include "Logger.h"
 #ifdef DEBUG
 #include <iostream>
@@ -17,7 +18,7 @@ mqtt_client::~mqtt_client() {}
 void mqtt_client::on_connect(int rc) {
   if (!rc) {
 #ifdef DEBUG
-    mMQTTLogger << "Connected - code " << rc << Logger::eol;
+    Log(mMQTTLogger, "connected");
 #endif
   }
 }

@@ -16,7 +16,7 @@ make = makefile.Make (goal, False)
 
 uname = os.uname()[0]
 
-sourceList = ["Heater.cpp", "Logger.cpp", "main.cpp", "mqtt.cpp", "Profiles.cpp", "TimeStamp.cpp"]
+sourceList = ["Heater.cpp", "Logger.cpp", "main.cpp", "mqtt.cpp", "Profiles.cpp", "TimeStamp.cpp", "Log.cpp"]
 objectList = []
 for source in sourceList:
   object = "objects/" + source + ".o"
@@ -26,7 +26,7 @@ for source in sourceList:
   rule.deleteTargetFileOnClean()
   rule.mDependences.append (source)
   rule.mCommand.append ("c++")
-  rule.mCommand += ["-std=c++17"]
+  rule.mCommand += ["-std=c++20"]
   if uname == "Darwin":
     rule.mCommand += ["-I/opt/homebrew/opt/mosquitto/include", "-I/opt/homebrew/opt/nlohmann-json/include"]
   elif uname == "Linux":

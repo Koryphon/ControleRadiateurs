@@ -57,7 +57,8 @@ public:
   static void parse(nlohmann::json &inConfig, Logger &inLogger);
   static bool temperatureForProfile(const string &inProfile, float &outTemp);
   Profile() {}
-  virtual bool check(Logger &inLogger) = 0;
+  virtual bool check(Logger &inLogger, const string &inName,
+                     set<string> &ioKnownProfiles) = 0;
   virtual bool temperature(float &outTemp) = 0;
 };
 
@@ -66,7 +67,8 @@ class ProfileAlias : public Profile {
 
 public:
   ProfileAlias(string &inAlias) : Profile() { mAlias = inAlias; }
-  virtual bool check(Logger &inLogger);
+  virtual bool check(Logger &inLogger, const string &inName,
+                     set<string> &ioKnownProfiles);
   virtual bool temperature(float &outTemp);
 };
 
@@ -78,7 +80,10 @@ public:
   void add(const uint32_t inMinutes, const float inTemperature);
   void add(const uint32_t inMinutes, const uint32_t inDuration,
            const float inStartTemperature, const float inEndTemperature);
-  virtual bool check(Logger &inLogger) { return true; }
+  virtual bool check(Logger &inLogger, const string &inName,
+                     set<string> &ioKnownProfiles) {
+    return true;
+  }
   virtual bool temperature(float &outTemp);
   friend ostream &operator<<(ostream &s, ProfileTemp &pt);
 };

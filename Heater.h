@@ -17,14 +17,15 @@ public:
   /* set of created heaters */
   static set<Heater *> sHeaters;
   string mName;
+  string mRoom;
   string mProfile;
   float mOffset;
   map<time_t, string> mProfileForDate;
 
 public:
-  Heater(const string &inName, const string &inProfile,
+  Heater(const string &inName, const string &inRoom, const string &inProfile,
          const map<time_t, string> &inProfilesForDate, const float inOffset)
-      : mName(inName), mProfile(inProfile), mOffset(inOffset),
+      : mName(inName), mRoom(inRoom), mProfile(inProfile), mOffset(inOffset),
         mProfileForDate(inProfilesForDate) {}
   const string &name() { return mName; }
   static void parse(nlohmann::json &inConfig, Logger &inLogger);
