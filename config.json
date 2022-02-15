@@ -1,6 +1,6 @@
 {
     "location": "Maison",
-    "host": "localhost",
+    "host": "raspberrypi.local",
     "port": 1883,
     "profiles": {
         "salle": {
