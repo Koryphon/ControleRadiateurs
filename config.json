@@ -72,7 +72,7 @@
         "heater0": {
             "location": "Notre chambre",
             "offset": -1.1,
-            "power": 1500,
+            "power": 1000,
             "profile": "chambre",
             "date": {
                 "2022-02-11 11:10": "inoccupee",
